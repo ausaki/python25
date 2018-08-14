@@ -1,0 +1,6 @@
+.py[co]
+config.log
+config.status
+pyconfig.h
+Makefile
+Makefile.pre
