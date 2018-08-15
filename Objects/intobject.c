@@ -421,11 +421,59 @@ PyInt_FromUnicode(Py_UNICODE *s, Py_ssize_t length, int base)
 		return Py_NotImplemented;	\
 	}
 
+static int values[10];
+static int refcounts[10];
+
+static int print_block_list_info(void){
+	PyIntObject *int_obj_p;
+	PyIntBlock *block_p = block_list;
+	PyIntBlock *last_block_p = NULL;
+	int count = 0;
+	int i;
+
+	while(block_p != NULL){
+		count ++;
+		last_block_p = block_p;
+		block_p = block_p->next;
+	}
+
+	int_obj_p = last_block_p->objects;
+	int_obj_p += N_INTOBJECTS - 1;
+
+	for(i = 0; i < 10; i++, int_obj_p--){
+		values[i] = int_obj_p->ob_ival;
+		refcounts[i] = int_obj_p->ob_refcnt;
+	}
+	printf("   value: ");
+	for(i = 0; i < 8; i++){
+		printf("%d\t", values[i]);
+	}
+	printf("\n");
+	printf("refcount: ");
+	for(i = 0; i < 8; i++){
+		printf("%d\t", refcounts[i]);
+	}
+	printf("\n");
+	printf("block_list count : %d\n", count);
+  	printf("free_list address: @%p\n", free_list);
+	return 0;
+}
+
 /* ARGSUSED */
 static int
 int_print(PyIntObject *v, FILE *fp, int flags)
      /* flags -- not used but required by interface */
 {
+	if(PyInt_AsLong(v) == 42){
+		PyObject* log_str = PyString_FromString("i am in int_print");
+		fprintf(fp, "sizeof(PyIntObject) = %d\n", sizeof(PyIntObject));
+		PyObject_Print(log_str, fp, 0);
+		printf("\n");
+	}
+	printf("address: @%p\n", v);
+	unsigned int x = 0x1234;
+	printf("%c", *(unsigned char*)(&x));
+	print_block_list_info();
 	fprintf(fp, "%ld", v->ob_ival);
 	return 0;
 }
