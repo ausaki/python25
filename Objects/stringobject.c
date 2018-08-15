@@ -785,34 +785,20 @@ PyString_AsStringAndSize(register PyObject *obj,
 #include "stringlib/partition.h"
 
 
-static void show_chars(void){
-	char cha = 'a';
-	PyStringObject** pos_a = characters + (unsigned short)cha;
-	int i;
-	PyStringObject *string_obj;
-	char values[5];
-	int refcounts[5];
+static void show_char(unsigned char c){
+	PyStringObject* strobj = characters[c];
+	if(strobj == NULL){
+		printf("value: null\n");
+	} else {
+		printf("value: %c, refcnt: %d\n", strobj->ob_sval[0], strobj->ob_refcnt);
+	}
+}
 
-	for(i = 0; i < 5; i++){
-		string_obj = pos_a[i];
-		if(string_obj != NULL){
-			values[i] = string_obj->ob_sval[0];
-			refcounts[i] = string_obj->ob_refcnt;
-		} else {
-			values[i] = 'x';
-			refcounts[i] = -1;
-		}
+static void show_characters(){
+	int i = 0;
+	for(i = 1; i <= UCHAR_MAX; i ++){
+		show_char((unsigned char)i);
 	}
-
-	printf(" value : ");
-	for(i = 0; i < 5; ++i){
-		printf("%c\t", values[i]);
-	}
-	printf("\nrefcnt : ");
-	for(i = 0; i < 5; ++i){
-		printf("%d\t", refcounts[i]);
-	}
-	printf("\n");
 }
 
 static int
@@ -958,15 +944,8 @@ string_length(PyStringObject *a)
 		printf("address: @%p\n", a);
 		printf("refcnt: %d\n", a->ob_refcnt);
 		printf("\n");
-	} else if(s[0] == 'y'){
-		show_chars();
-	} else if(s[0] == '*'){
-		PyStringObject *string_obj = characters['*' & UCHAR_MAX];
-		if(string_obj == NULL){
-			printf("*: null");
-		} else {
-			printf("*: %d", string_obj->ob_refcnt);
-		}
+	}else if(s[0] == '?'){
+		show_characters();
 	}
 	return a->ob_size;
 }
