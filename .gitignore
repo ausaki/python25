@@ -1,6 +1,12 @@
-.py[co]
+*.py[co]
+*.o
+*.a
+python.exe
 config.log
 config.status
 pyconfig.h
 Makefile
 Makefile.pre
+build/
+Parser/pgen
+Lib/plat-linux4/
