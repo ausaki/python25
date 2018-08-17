@@ -784,22 +784,18 @@ PyString_AsStringAndSize(register PyObject *obj,
 #include "stringlib/find.h"
 #include "stringlib/partition.h"
 
-
-static void show_char(unsigned char c){
-	PyStringObject* strobj = characters[c];
-	if(strobj == NULL){
-		printf("value: null\n");
-	} else {
-		printf("value: %c, refcnt: %d\n", strobj->ob_sval[0], strobj->ob_refcnt);
-	}
-}
-
-static void show_characters(){
-	int i = 0;
-	for(i = 1; i <= UCHAR_MAX; i ++){
-		show_char((unsigned char)i);
-	}
-}
+// static void show_characters(){
+// 	int i = 0;
+// 	PyStringObject* strobj;
+// 	for(i = 1; i <= UCHAR_MAX; i ++){
+// 		strobj = characters[i];
+// 		if(strobj == NULL){
+// 			printf("value: null\n");
+// 		} else {
+// 			printf("value: %c, refcnt: %d\n", strobj->ob_sval[0], strobj->ob_refcnt);
+// 		}
+// 	}
+// }
 
 static int
 string_print(PyStringObject *op, FILE *fp, int flags)
@@ -940,12 +936,11 @@ static Py_ssize_t
 string_length(PyStringObject *a)
 {	
 	char* s = PyString_AsString(a);
-	if(s[0] == 'x'){
-		printf("address: @%p\n", a);
-		printf("refcnt: %d\n", a->ob_refcnt);
-		printf("\n");
-	}else if(s[0] == '?'){
-		show_characters();
+	PyStringObject *strobj = characters['*'];
+	if(strobj == NULL){
+		printf("Not found *");
+	} else {
+		printf("found *, refcnt: %d", strobj->ob_refcnt);
 	}
 	return a->ob_size;
 }
