@@ -296,6 +296,9 @@ list_print(PyListObject *op, FILE *fp, int flags)
 	}
 	fprintf(fp, "]");
 	Py_ReprLeave((PyObject *)op);
+	fprintf(fp, "\n");
+	fprintf(fp, "list @%p: ob_size: %d, allocted: %d\n", op, op->ob_size, op->allocated);
+	fprintf(fp, "num_free_lists: %d\n", num_free_lists);
 	return 0;
 }
 
