@@ -784,18 +784,17 @@ PyString_AsStringAndSize(register PyObject *obj,
 #include "stringlib/find.h"
 #include "stringlib/partition.h"
 
-// static void show_characters(){
-// 	int i = 0;
-// 	PyStringObject* strobj;
-// 	for(i = 1; i <= UCHAR_MAX; i ++){
-// 		strobj = characters[i];
-// 		if(strobj == NULL){
-// 			printf("value: null\n");
-// 		} else {
-// 			printf("value: %c, refcnt: %d\n", strobj->ob_sval[0], strobj->ob_refcnt);
-// 		}
-// 	}
-// }
+static void show_characters(){
+	int i = 0;
+	PyStringObject* strobj;
+	for(i = 1; i <= UCHAR_MAX; i ++){
+		strobj = characters[i];
+		if(strobj != NULL){
+			printf("value: %c(%d), refcnt: %d\n", strobj->ob_sval[0], strobj->ob_sval[0], strobj->ob_refcnt);
+		} else {
+		}
+	}
+}
 
 static int
 string_print(PyStringObject *op, FILE *fp, int flags)
@@ -935,12 +934,14 @@ string_str(PyObject *s)
 static Py_ssize_t
 string_length(PyStringObject *a)
 {	
-	char* s = PyString_AsString(a);
-	PyStringObject *strobj = characters['*'];
-	if(strobj == NULL){
-		printf("Not found *");
-	} else {
-		printf("found *, refcnt: %d", strobj->ob_refcnt);
+	PyStringObject* p = characters['*']; 
+    if (p) { 
+        printf("DBG: Found: %s\n", PyString_AsString(p)); 
+    } else { 
+        printf("DBG: Not Found\n"); 
+    }
+	if(a->ob_sval[0] == '?'){
+		show_characters();
 	}
 	return a->ob_size;
 }
@@ -4915,8 +4916,8 @@ PyString_InternInPlace(PyObject **p)
 			return;
 		}
 	}
-	if(s->ob_sval[0] == 'x'){
-		printf("Calling PyString_InternInPlace\n");
+	if(s->ob_sval[0] == '*'){
+		printf("Calling PyString_InternInPlace: %s\n", s->ob_sval);
 	}
 	t = PyDict_GetItem(interned, (PyObject *)s);
 	if (t) {
@@ -4939,8 +4940,8 @@ PyString_InternInPlace(PyObject **p)
 void
 PyString_InternImmortal(PyObject **p)
 {
-	if(((PyStringObject *)(*p))->ob_sval[0] == 'x'){
-		printf("Calling PyString_InternImmortal\n");
+	if(((PyStringObject *)(*p))->ob_sval[0] == '*'){
+		printf("Calling PyString_InternImmortal: %s\n", ((PyStringObject *)(*p))->ob_sval);
 	}
 	PyString_InternInPlace(p);
 	if (PyString_CHECK_INTERNED(*p) != SSTATE_INTERNED_IMMORTAL) {
@@ -4953,8 +4954,8 @@ PyString_InternImmortal(PyObject **p)
 PyObject *
 PyString_InternFromString(const char *cp)
 {
-	if(cp[0] == 'x'){
-		printf("Calling PyString_InternFromString\n");
+	if(cp[0] == '*'){
+		printf("Calling PyString_InternFromString: %s\n", cp);
 	}
 	PyObject *s = PyString_FromString(cp);
 	if (s == NULL)
