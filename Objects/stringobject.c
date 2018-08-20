@@ -934,12 +934,9 @@ string_str(PyObject *s)
 static Py_ssize_t
 string_length(PyStringObject *a)
 {	
-	PyStringObject* p = characters['*']; 
-    if (p) { 
-        printf("DBG: Found: %s\n", PyString_AsString(p)); 
-    } else { 
-        printf("DBG: Not Found\n"); 
-    }
+	if(a->ob_sval[0] == '&'){
+		printf("addr: @%p, refcnt: %d\n", a, a->ob_refcnt);
+	}
 	if(a->ob_sval[0] == '?'){
 		show_characters();
 	}
@@ -4916,9 +4913,6 @@ PyString_InternInPlace(PyObject **p)
 			return;
 		}
 	}
-	if(s->ob_sval[0] == '*'){
-		printf("Calling PyString_InternInPlace: %s\n", s->ob_sval);
-	}
 	t = PyDict_GetItem(interned, (PyObject *)s);
 	if (t) {
 		Py_INCREF(t);
@@ -4940,9 +4934,6 @@ PyString_InternInPlace(PyObject **p)
 void
 PyString_InternImmortal(PyObject **p)
 {
-	if(((PyStringObject *)(*p))->ob_sval[0] == '*'){
-		printf("Calling PyString_InternImmortal: %s\n", ((PyStringObject *)(*p))->ob_sval);
-	}
 	PyString_InternInPlace(p);
 	if (PyString_CHECK_INTERNED(*p) != SSTATE_INTERNED_IMMORTAL) {
 		PyString_CHECK_INTERNED(*p) = SSTATE_INTERNED_IMMORTAL;
@@ -4954,9 +4945,6 @@ PyString_InternImmortal(PyObject **p)
 PyObject *
 PyString_InternFromString(const char *cp)
 {
-	if(cp[0] == '*'){
-		printf("Calling PyString_InternFromString: %s\n", cp);
-	}
 	PyObject *s = PyString_FromString(cp);
 	if (s == NULL)
 		return NULL;
