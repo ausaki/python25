@@ -212,6 +212,40 @@ PyDict_New(void)
 	return (PyObject *)mp;
 }
 
+static void ShowDictObject(dictobject *dictObject)
+{
+	dictentry *entry = dictObject->ma_table;
+	int count = dictObject->ma_mask + 1;
+	int i;
+	//输出key
+	printf("  key : ");
+	for (i = 0; i < count; ++i)
+	{
+		PyObject *key = entry->me_key;
+		if(key == NULL){
+			printf("NULL");
+		} else {
+			(key->ob_type)->tp_print(key, stdout, 0);
+		}
+		printf("\t");
+		++entry;
+	}
+	//输出value
+	printf("\nvalue : ");
+	entry = dictObject->ma_table;
+	for (i = 0; i < count; ++i)
+	{
+		PyObject *value = entry->me_value;
+		if(value == NULL){
+			printf("NULL");
+		}else{
+			(value->ob_type)->tp_print(value, stdout, 0);
+		}
+		printf("\t");
+		++entry;
+	}
+	printf("\n");
+}
 /*
 The basic lookup function used by all operations.
 This is based on Algorithm D from Knuth Vol. 3, Sec. 6.4.
@@ -251,17 +285,21 @@ lookdict(dictobject *mp, PyObject *key, register long hash)
 	i = (size_t)hash & mask;
 	ep = &ep0[i];
 	if (ep->me_key == NULL || ep->me_key == key)
+		// entry 的状态是 Unused 或者 key引用相等
 		return ep;
 
 	if (ep->me_key == dummy)
 		freeslot = ep;
 	else {
 		if (ep->me_hash == hash) {
+			// hash 相等，则继续判断值是否相等
 			startkey = ep->me_key;
 			cmp = PyObject_RichCompareBool(startkey, key, Py_EQ);
 			if (cmp < 0)
+				// 比较失败
 				return NULL;
 			if (ep0 == mp->ma_table && ep->me_key == startkey) {
+				// 这个 if 好像一定成功啊
 				if (cmp > 0)
 					return ep;
 			}
@@ -283,6 +321,7 @@ lookdict(dictobject *mp, PyObject *key, register long hash)
 		i = (i << 2) + i + perturb + 1;
 		ep = &ep0[i & mask];
 		if (ep->me_key == NULL)
+			// for在最差的情况下最终会在这里退出，PyDictObject 保证最后的 entry 的 key是 NULL 
 			return freeslot == NULL ? ep : freeslot;
 		if (ep->me_key == key)
 			return ep;
@@ -384,11 +423,13 @@ insertdict(register dictobject *mp, PyObject *key, long hash, PyObject *value)
 	assert(mp->ma_lookup != NULL);
 	ep = mp->ma_lookup(mp, key, hash);
 	if (ep == NULL) {
+		// 搜索错误
 		Py_DECREF(key);
 		Py_DECREF(value);
 		return -1;
 	}
 	if (ep->me_value != NULL) {
+		//  Active
 		old_value = ep->me_value;
 		ep->me_value = value;
 		Py_DECREF(old_value); /* which **CAN** re-enter */
@@ -396,8 +437,10 @@ insertdict(register dictobject *mp, PyObject *key, long hash, PyObject *value)
 	}
 	else {
 		if (ep->me_key == NULL)
+			// Unused
 			mp->ma_fill++;
 		else {
+			// Dummy
 			assert(ep->me_key == dummy);
 			Py_DECREF(dummy);
 		}
@@ -405,6 +448,19 @@ insertdict(register dictobject *mp, PyObject *key, long hash, PyObject *value)
 		ep->me_hash = (Py_ssize_t)hash;
 		ep->me_value = value;
 		mp->ma_used++;
+	}
+	{
+		dictentry *p;
+		long strHash;
+		PyObject *str = PyString_FromString("PR");
+		strHash = PyObject_Hash(str);
+		p = mp->ma_lookup(mp, str, strHash);
+		if (p->me_value != NULL && (key->ob_type)->tp_name[0] == 'i')
+		{
+			PyIntObject *intObject = (PyIntObject *)key;
+			printf("insert %d\n", intObject->ob_ival);
+			ShowDictObject(mp);
+		}
 	}
 	return 0;
 }
@@ -808,6 +864,7 @@ dict_dealloc(register dictobject *mp)
 	else
 		mp->ob_type->tp_free((PyObject *)mp);
 	Py_TRASHCAN_SAFE_END(mp)
+	printf("dealloc dict: size :%d\tnum_free_dicts: %d\n", mp->ma_mask + 1, num_free_dicts);
 }
 
 static int
