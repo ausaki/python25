@@ -2634,6 +2634,7 @@ PyEval_EvalCodeEx(PyCodeObject *co, PyObject *globals, PyObject *locals,
 
 	if (co->co_argcount > 0 ||
 	    co->co_flags & (CO_VARARGS | CO_VARKEYWORDS)) {
+		// 形参包含变长参数
 		int i;
 		int n = argcount;
 		PyObject *kwdict = NULL;
@@ -2644,9 +2645,11 @@ PyEval_EvalCodeEx(PyCodeObject *co, PyObject *globals, PyObject *locals,
 			i = co->co_argcount;
 			if (co->co_flags & CO_VARARGS)
 				i++;
+			// 在 f_localsplus 区域的后面设置关键字可变参数
 			SETLOCAL(i, kwdict);
 		}
 		if (argcount > co->co_argcount) {
+			// 实参中的位置参数个数大于形参中参数的个数
 			if (!(co->co_flags & CO_VARARGS)) {
 				PyErr_Format(PyExc_TypeError,
 				    "%.200s() takes %s %d "
@@ -2662,11 +2665,13 @@ PyEval_EvalCodeEx(PyCodeObject *co, PyObject *globals, PyObject *locals,
 			n = co->co_argcount;
 		}
 		for (i = 0; i < n; i++) {
+			// 复制位置参数到 f_localsplus
 			x = args[i];
 			Py_INCREF(x);
 			SETLOCAL(i, x);
 		}
 		if (co->co_flags & CO_VARARGS) {
+			// 将多余的位置参数放入可变位置参数（*args）中
 			u = PyTuple_New(argcount - n);
 			if (u == NULL)
 				goto fail;
@@ -2678,6 +2683,7 @@ PyEval_EvalCodeEx(PyCodeObject *co, PyObject *globals, PyObject *locals,
 			}
 		}
 		for (i = 0; i < kwcount; i++) {
+			// 处理实参中的关键字参数
 			PyObject *keyword = kws[2*i];
 			PyObject *value = kws[2*i + 1];
 			int j;
@@ -2702,6 +2708,7 @@ PyEval_EvalCodeEx(PyCodeObject *co, PyObject *globals, PyObject *locals,
 			if (PyErr_Occurred())
 				goto fail;
 			if (j >= co->co_argcount) {
+				// 如果关键字参数不在形参中，则放入可变关键字参数（kwargs）中
 				if (kwdict == NULL) {
 					PyErr_Format(PyExc_TypeError,
 					    "%.200s() got an unexpected "
@@ -2713,6 +2720,7 @@ PyEval_EvalCodeEx(PyCodeObject *co, PyObject *globals, PyObject *locals,
 				PyDict_SetItem(kwdict, keyword, value);
 			}
 			else {
+				// 如果关键字参数在形参中，则直接放入 f_localsplus
 				if (GETLOCAL(j) != NULL) {
 					PyErr_Format(PyExc_TypeError,
 					     "%.200s() got multiple "
@@ -2727,8 +2735,10 @@ PyEval_EvalCodeEx(PyCodeObject *co, PyObject *globals, PyObject *locals,
 			}
 		}
 		if (argcount < co->co_argcount) {
-			int m = co->co_argcount - defcount;
+			// 处理默认参数值
+			int m = co->co_argcount - defcount; // 实参至少应该提供 m 个位置参数
 			for (i = argcount; i < m; i++) {
+				// 检查是否缺少位置参数
 				if (GETLOCAL(i) == NULL) {
 					PyErr_Format(PyExc_TypeError,
 					    "%.200s() takes %s %d "
@@ -3528,6 +3538,7 @@ call_function(PyObject ***pp_stack, int oparg
 #endif
 		)
 {
+	// oparg 是 short 类型，高字节表示 nk（实参中关键字参数个数），低字节表示 na（实参中位置参数个数）
 	int na = oparg & 0xff;
 	int nk = (oparg>>8) & 0xff;
 	int n = na + 2 * nk;
@@ -3625,6 +3636,14 @@ fast_function(PyObject *func, PyObject ***pp_stack, int n, int na, int nk)
 	PCALL(PCALL_FAST_FUNCTION);
 	if (argdefs == NULL && co->co_argcount == n && nk==0 &&
 	    co->co_flags == (CO_OPTIMIZED | CO_NEWLOCALS | CO_NOFREE)) {
+		/*	最简单的函数调用的情况：
+				1. 函数没有参数
+				2. 形参没有默认值 and 实参都是位置参数 and 参数一一对应
+
+			def f(a, b):
+				print 'hello world'
+			f(1, 2)
+		*/ 
 		PyFrameObject *f;
 		PyObject *retval = NULL;
 		PyThreadState *tstate = PyThreadState_GET();
@@ -3645,6 +3664,7 @@ fast_function(PyObject *func, PyObject ***pp_stack, int n, int na, int nk)
 		fastlocals = f->f_localsplus;
 		stack = (*pp_stack) - n;
 
+		// 将栈里面的参数复制到新创建的 frame 的 f_localsplus 区域
 		for (i = 0; i < n; i++) {
 			Py_INCREF(*stack);
 			fastlocals[i] = *stack++;
@@ -3656,6 +3676,7 @@ fast_function(PyObject *func, PyObject ***pp_stack, int n, int na, int nk)
 		return retval;
 	}
 	if (argdefs != NULL) {
+		// argdefs 是一个 tuple
 		d = &PyTuple_GET_ITEM(argdefs, 0);
 		nd = ((PyTupleObject *)argdefs)->ob_size;
 	}
