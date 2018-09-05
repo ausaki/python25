@@ -4062,6 +4062,8 @@ build_class(PyObject *methods, PyObject *bases, PyObject *name)
 {
 	PyObject *metaclass = NULL, *result, *base;
 
+	int debug = PyObject_RichCompareBool(name, PyString_FromString("MyTestClass"), Py_EQ);
+	
 	if (PyDict_Check(methods))
 		metaclass = PyDict_GetItemString(methods, "__metaclass__");
 	if (metaclass != NULL)
@@ -4083,7 +4085,22 @@ build_class(PyObject *methods, PyObject *bases, PyObject *name)
 			metaclass = (PyObject *) &PyClass_Type;
 		Py_INCREF(metaclass);
 	}
+	if(debug > 0){
+		fprintf(stderr, "[build_class] name\n");
+		_PyObject_Dump(name);
+		fprintf(stderr, "[build_class] metaclass\n");
+		_PyObject_Dump(metaclass);
+		fprintf(stderr, "[build_class] bases\n");
+		_PyObject_Dump(bases);
+		fprintf(stderr, "[build_class] methods\n");
+		_PyObject_Dump(methods);
+	}
 	result = PyObject_CallFunctionObjArgs(metaclass, name, bases, methods, NULL);
+	
+	if(debug > 0){
+		fprintf(stderr, "[build_class] result\n");
+		_PyObject_Dump(result);
+	}
 	Py_DECREF(metaclass);
 	if (result == NULL && PyErr_ExceptionMatches(PyExc_TypeError)) {
 		/* A type error here likely means that the user passed

@@ -1249,6 +1249,7 @@ PyObject_GenericGetAttr(PyObject *obj, PyObject *name)
 	descrgetfunc f;
 	Py_ssize_t dictoffset;
 	PyObject **dictptr;
+	int debug = strcmp(tp->tp_name, "MyTestClass") == 0 ? 1 : 0;
 
 	if (!PyString_Check(name)){
 #ifdef Py_USING_UNICODE
@@ -1272,7 +1273,14 @@ PyObject_GenericGetAttr(PyObject *obj, PyObject *name)
 	else
 		Py_INCREF(name);
 
+	if(debug > 0){
+		fprintf(stderr, "[PyObject_GenericGetAttr] %s\n", tp->tp_name);
+		_PyObject_Dump(tp->tp_dict);
+	}
 	if (tp->tp_dict == NULL) {
+		if (debug > 0){
+			fprintf(stderr, "[PyObject_GenericGetAttr] call PyType_Ready\n");
+		}
 		if (PyType_Ready(tp) < 0)
 			goto done;
 	}
@@ -1301,7 +1309,10 @@ PyObject_GenericGetAttr(PyObject *obj, PyObject *name)
 				break;
 		}
 	}
-
+	if (debug > 0){
+		fprintf(stderr, "[PyObject_GenericGetAttr] descr\n");
+		_PyObject_Dump(descr);
+	}
 	Py_XINCREF(descr);
 
 	f = NULL;
@@ -1311,12 +1322,19 @@ PyObject_GenericGetAttr(PyObject *obj, PyObject *name)
 		if (f != NULL && PyDescr_IsData(descr)) {
 			res = f(descr, obj, (PyObject *)obj->ob_type);
 			Py_DECREF(descr);
+			if (debug > 0){
+				fprintf(stderr, "[PyObject_GenericGetAttr] find attr from class's descr\n");
+			}
 			goto done;
 		}
 	}
 
 	/* Inline _PyObject_GetDictPtr */
 	dictoffset = tp->tp_dictoffset;
+	if (debug > 0){
+		fprintf(stderr, "[PyObject_GenericGetAttr] tp_dictoffset\n");
+		fprintf(stderr, "%ld\n", dictoffset);
+	}
 	if (dictoffset != 0) {
 		PyObject *dict;
 		if (dictoffset < 0) {
@@ -1339,6 +1357,9 @@ PyObject_GenericGetAttr(PyObject *obj, PyObject *name)
 			if (res != NULL) {
 				Py_INCREF(res);
 				Py_XDECREF(descr);
+				if (debug > 0){
+					fprintf(stderr, "[PyObject_GenericGetAttr] find attr from __dict__\n");
+				}
 				goto done;
 			}
 		}
@@ -1347,6 +1368,9 @@ PyObject_GenericGetAttr(PyObject *obj, PyObject *name)
 	if (f != NULL) {
 		res = f(descr, obj, (PyObject *)obj->ob_type);
 		Py_DECREF(descr);
+		if (debug > 0){
+			fprintf(stderr, "[PyObject_GenericGetAttr] find attr from f\n");
+		}
 		goto done;
 	}
 
@@ -1361,6 +1385,10 @@ PyObject_GenericGetAttr(PyObject *obj, PyObject *name)
 		     tp->tp_name, PyString_AS_STRING(name));
   done:
 	Py_DECREF(name);
+	if (debug > 0){
+		fprintf(stderr, "[PyObject_GenericGetAttr] find attr\n");
+		_PyObject_Dump(res);
+	}
 	return res;
 }
 

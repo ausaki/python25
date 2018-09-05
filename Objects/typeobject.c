@@ -411,6 +411,11 @@ static PyObject *
 type_call(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
 	PyObject *obj;
+	int debug = 0;
+	if(PyTuple_Check(args) && PyTuple_GET_SIZE(args) > 1){
+		PyObject* s = PyTuple_GetItem(args, 0);
+		debug = PyObject_RichCompareBool(s, PyString_FromString("MyTestClass"), Py_EQ);
+	}
 
 	if (type->tp_new == NULL) {
 		PyErr_Format(PyExc_TypeError,
@@ -419,6 +424,10 @@ type_call(PyTypeObject *type, PyObject *args, PyObject *kwds)
 		return NULL;
 	}
 
+	if(debug > 0){
+		fprintf(stderr, "[type_call] debug\n");
+	}
+	
 	obj = type->tp_new(type, args, kwds);
 	if (obj != NULL) {
 		/* Ugly exception: when the call was type(something),
@@ -430,9 +439,17 @@ type_call(PyTypeObject *type, PyObject *args, PyObject *kwds)
 			return obj;
 		/* If the returned object is not an instance of type,
 		   it won't be initialized. */
-		if (!PyType_IsSubtype(obj->ob_type, type))
+		if (!PyType_IsSubtype(obj->ob_type, type)){
+			if(debug > 0){
+				fprintf(stderr, "[type_call] obj->ob_type issubtype type\n");
+			}
 			return obj;
+		}
+			
 		type = obj->ob_type;
+		if(debug > 0){
+			fprintf(stderr, "[type_call] obj->ob_type: %s\n", type->tp_name);
+		}
 		if (PyType_HasFeature(type, Py_TPFLAGS_HAVE_CLASS) &&
 		    type->tp_init != NULL &&
 		    type->tp_init(obj, args, kwds) < 0) {
@@ -1630,7 +1647,13 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
 					 &PyTuple_Type, &bases,
 					 &PyDict_Type, &dict))
 		return NULL;
+	int debug = 0;
+	debug = PyObject_RichCompareBool(name, PyString_FromString("MyTestClass"), Py_EQ);
 
+	if(debug > 0){
+		fprintf(stderr, "[type_new] dict\n");
+		_PyObject_Dump(dict);
+	}
 	/* Determine the proper metatype to deal with this,
 	   and check for metatype conflicts while we're at it.
 	   Note that if some other metatype wins to contract,
@@ -1694,7 +1717,15 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
 	add_weak = 0;
 	may_add_dict = base->tp_dictoffset == 0;
 	may_add_weak = base->tp_weaklistoffset == 0 && base->tp_itemsize == 0;
+	if(debug > 0){
+		fprintf(stderr, "[type_new] may_add_dict: %d, base->tp_dictoffset: %d\n", may_add_dict, base->tp_dictoffset);
+		fprintf(stderr, "[type_new] may_add_weak: %d, base->tp_weaklistoffset: %d, base->tp_itemsize: %d\n", 
+				may_add_weak, base->tp_weaklistoffset, base->tp_itemsize);
+	}
 	if (slots == NULL) {
+		if(debug > 0){
+			fprintf(stderr, "[type_new] slots == NULL\n", nslots);
+		}
 		if (may_add_dict) {
 			add_dict++;
 		}
@@ -1827,6 +1858,15 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
 	   "return NULL" may leak slots! */
 
 	/* Allocate the type object */
+	if(debug > 0){
+		fprintf(stderr, "[type_new] nslots: %d\n", nslots);
+	}
+	size_t size = _PyObject_VAR_SIZE(metatype, nslots+1);
+	if(debug > 0){
+		fprintf(stderr, "[type_new] metatype(type).tp_basicsize in bytes: %d\n", metatype->tp_basicsize);
+		fprintf(stderr, "[type_new] metatype(type).tp_itemsize in bytes: %d\n", metatype->tp_itemsize);
+		fprintf(stderr, "[type_new] type(created) size in bytes: %d\n", size);
+	}
 	type = (PyTypeObject *)metatype->tp_alloc(metatype, nslots);
 	if (type == NULL) {
 		Py_XDECREF(slots);
@@ -1870,7 +1910,7 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
 		Py_DECREF(type);
 		return NULL;
 	}
-
+	
 	/* Set __module__ in the dict */
 	if (PyDict_GetItemString(dict, "__module__") == NULL) {
 		tmp = PyEval_GetGlobals();
@@ -1983,15 +2023,21 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
 	else
 		type->tp_free = PyObject_Del;
 
+	if(debug > 0){
+		fprintf(stderr, "[type_new] before PyType_Ready, type->tp_dict\n");
+		_PyObject_Dump(type->tp_dict);
+	}
 	/* Initialize the rest */
 	if (PyType_Ready(type) < 0) {
 		Py_DECREF(type);
 		return NULL;
 	}
-
+	if(debug > 0){
+		fprintf(stderr, "[type_new] after PyType_Ready, type->tp_dict\n");
+		_PyObject_Dump(type->tp_dict);
+	}
 	/* Put the proper slots in place */
 	fixup_slot_dispatchers(type);
-
 	return (PyObject *)type;
 }
 
@@ -2323,6 +2369,12 @@ object_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 		PyErr_SetString(PyExc_TypeError,
 				"default __new__ takes no parameters");
 		return NULL;
+	}
+	int debug = strcmp(type->tp_name, "MyTestClass") == 0 ? 1 : 0;
+	if(debug > 0){
+		size_t size = _PyObject_VAR_SIZE(type, 1);
+		fprintf(stderr, "[object_new] %s\n", type->tp_name);
+		fprintf(stderr, "[object_new] size: %d\n", size);
 	}
 	return type->tp_alloc(type, 0);
 }
@@ -3139,6 +3191,7 @@ PyType_Ready(PyTypeObject *type)
 	PyObject *dict, *bases;
 	PyTypeObject *base;
 	Py_ssize_t i, n;
+	int debug = 0;
 
 	if (type->tp_flags & Py_TPFLAGS_READY) {
 		assert(type->tp_dict != NULL);
@@ -3204,10 +3257,45 @@ PyType_Ready(PyTypeObject *type)
 			goto error;
 		type->tp_dict = dict;
 	}
-
+	if(type->tp_name != NULL){
+		debug = strcmp(type->tp_name, "MyTestClass") == 0 ? 1 : 0;
+	}
 	/* Add type-specific descriptors to tp_dict */
 	if (add_operators(type) < 0)
 		goto error;
+	if(debug > 0){
+		fprintf(stderr, "[PyType_Ready] add_operators\n");
+		_PyObject_Dump(type->tp_dict);
+	}
+	if(debug > 0){
+		fprintf(stderr, "[PyType_Ready] tp_methods\n");
+		if(type->tp_methods == NULL){
+			fprintf(stderr, "NULL\n");
+		} else {
+			PyMethodDef* meth = type->tp_methods;
+			for (; meth->ml_name != NULL; meth++) {
+				fprintf(stderr, "%s\n", meth->ml_name);
+			}
+		}
+		fprintf(stderr, "[PyType_Ready] tp_members\n");
+		if(type->tp_members == NULL){
+			fprintf(stderr, "NULL\n");
+		} else {
+			PyMemberDef* memb = type->tp_members;
+			for (; memb->name != NULL; memb++) {
+				fprintf(stderr, "%s\n", memb->name);
+			}
+		}
+		fprintf(stderr, "[PyType_Ready] tp_getset\n");
+		if(type->tp_getset == NULL){
+			fprintf(stderr, "NULL\n");
+		} else {
+			PyGetSetDef* gsp = type->tp_getset;
+			for (; gsp->name != NULL; gsp++) {
+				fprintf(stderr, "%s\n", gsp->name);
+			}
+		}
+	}
 	if (type->tp_methods != NULL) {
 		if (add_methods(type, type->tp_methods) < 0)
 			goto error;
@@ -3220,12 +3308,14 @@ PyType_Ready(PyTypeObject *type)
 		if (add_getset(type, type->tp_getset) < 0)
 			goto error;
 	}
-
 	/* Calculate method resolution order */
 	if (mro_internal(type) < 0) {
 		goto error;
 	}
-
+	if(debug > 0){
+		fprintf(stderr, "[PyType_Ready] tp_mro\n");
+		_PyObject_Dump(type->tp_mro);
+	}
 	/* Inherit special flags from dominant base */
 	if (type->tp_base != NULL)
 		inherit_special(type, type->tp_base);
@@ -3239,6 +3329,27 @@ PyType_Ready(PyTypeObject *type)
 		PyObject *b = PyTuple_GET_ITEM(bases, i);
 		if (PyType_Check(b))
 			inherit_slots(type, (PyTypeObject *)b);
+	}
+	if(debug > 0){
+		fprintf(stderr, "[PyType_Ready] detail info\n");
+		fprintf(stderr, "[PyType_Ready] tp_as_number\n");
+		fprintf(stderr, "%p\n", type->tp_as_number);
+		fprintf(stderr, "[PyType_Ready] tp_as_sequence\n");
+		fprintf(stderr, "%p\n", type->tp_as_sequence);
+		fprintf(stderr, "[PyType_Ready] tp_as_mapping\n");
+		fprintf(stderr, "%p\n", type->tp_as_mapping);
+		fprintf(stderr, "[PyType_Ready] tp_getattro\n");
+		fprintf(stderr, "%p\n", type->tp_getattro);
+		fprintf(stderr, "[PyType_Ready] tp_basicsize\n");
+		fprintf(stderr, "%d\n", type->tp_basicsize);
+		fprintf(stderr, "[PyType_Ready] tp_itemsize\n");
+		fprintf(stderr, "%d\n", type->tp_itemsize);
+		fprintf(stderr, "[PyType_Ready] tp_call\n");
+		fprintf(stderr, "%p\n", type->tp_call);
+		fprintf(stderr, "[PyType_Ready] tp_setattro\n");
+		fprintf(stderr, "%p\n", type->tp_setattro);
+		fprintf(stderr, "[PyType_Ready] tp_dictoffset\n");
+		fprintf(stderr, "%d\n", type->tp_dictoffset);
 	}
 
 	/* Sanity check for tp_free. */
@@ -5516,24 +5627,45 @@ add_operators(PyTypeObject *type)
 	slotdef *p;
 	PyObject *descr;
 	void **ptr;
-
+	int debug = strcmp(type->tp_name, "MyTestClass") == 0 ? 1 : 0;
+	
 	init_slotdefs();
 	for (p = slotdefs; p->name; p++) {
-		if (p->wrapper == NULL)
+		if (p->wrapper == NULL){
+			if(debug > 0){
+				fprintf(stderr, "[add_operators] p->wrapper == NULL, %s\n", p->name);
+			}
 			continue;
+		}
+			
 		ptr = slotptr(type, p->offset);
-		if (!ptr || !*ptr)
+		if (!ptr || !*ptr){
+			if(debug > 0){
+				fprintf(stderr, "[add_operators] ptr == NULL, %s\n", p->name);
+			}
 			continue;
-		if (PyDict_GetItem(dict, p->name_strobj))
+		}
+		if (PyDict_GetItem(dict, p->name_strobj)){
+			if(debug > 0){
+				fprintf(stderr, "[add_operators] exists in dict, %s\n", p->name);
+			}
 			continue;
+		}
 		descr = PyDescr_NewWrapper(type, p, *ptr);
 		if (descr == NULL)
 			return -1;
+		if(debug > 0){
+			fprintf(stderr, "[add_operators] set descr, %s\n", p->name);
+		}
 		if (PyDict_SetItem(dict, p->name_strobj, descr) < 0)
 			return -1;
 		Py_DECREF(descr);
 	}
 	if (type->tp_new != NULL) {
+		if(debug > 0){
+			fprintf(stderr, "[add_operators] add_tp_new_wrapper");
+			_PyObject_Dump(type->tp_new);
+		}
 		if (add_tp_new_wrapper(type) < 0)
 			return -1;
 	}
