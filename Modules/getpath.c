@@ -253,6 +253,8 @@ absolutize(char *path)
 
 /* search_for_prefix requires that argv0_path be no more than MAXPATHLEN
    bytes long.
+
+   根据 python 的执行路径和 pythonhome 来获取 prefix
 */
 static int
 search_for_prefix(char *argv0_path, char *home)
@@ -275,6 +277,7 @@ search_for_prefix(char *argv0_path, char *home)
     /* Check to see if argv[0] is in the build directory */
     strcpy(prefix, argv0_path);
     joinpath(prefix, "Modules/Setup");
+    printf("vpath", VPATH);
     if (isfile(prefix)) {
         /* Check VPATH to see if argv0_path is in the build directory. */
         vpath = VPATH;
@@ -288,6 +291,8 @@ search_for_prefix(char *argv0_path, char *home)
 
     /* Search from argv0_path, until root is found */
     copy_absolute(prefix, argv0_path);
+    // 从argv0_path开始，不断向上级目录搜寻，
+    // 直到该路径满足ismodule(prefix + lib_python + LANDMARK)
     do {
         n = strlen(prefix);
         joinpath(prefix, lib_python);
@@ -392,7 +397,11 @@ calculate_path(void)
     unsigned long nsexeclength = MAXPATHLEN;
 #endif
 #endif
-
+    printf("pythonpath: %s\n", pythonpath);
+    printf("rtpypath: %s\n", rtpypath);
+    printf("prog: %s\n", prog);
+	printf("pythonhome: %s\n", home);
+	printf("PATH: %s\n", path);
 	/* If there is no slash in the argv0 path, then we have to
 	 * assume python is on the user's $PATH, since there's no
 	 * other way to find a directory to start the search from.  If
@@ -443,6 +452,7 @@ calculate_path(void)
 		progpath[0] = '\0';
 	if (progpath[0] != SEP)
 		absolutize(progpath);
+    printf("progpath: %s\n", progpath);
 	strncpy(argv0_path, progpath, MAXPATHLEN);
 	argv0_path[MAXPATHLEN] = '\0';
 
@@ -505,7 +515,7 @@ calculate_path(void)
     /* At this point, argv0_path is guaranteed to be less than
        MAXPATHLEN bytes long.
     */
-
+    printf("argv0_path: %s\n", argv0_path);
     if (!(pfound = search_for_prefix(argv0_path, home))) {
         if (!Py_FrozenFlag)
             fprintf(stderr,
@@ -514,8 +524,8 @@ calculate_path(void)
         joinpath(prefix, lib_python);
     }
     else
-        reduce(prefix);
-
+        reduce(prefix); 
+    printf("prefix: %s\n", prefix);
     strncpy(zip_path, prefix, MAXPATHLEN);
     zip_path[MAXPATHLEN] = '\0';
     if (pfound > 0) { /* Use the reduced prefix returned by Py_GetPrefix() */
@@ -528,7 +538,7 @@ calculate_path(void)
     bufsz = strlen(zip_path);	/* Replace "00" with version */
     zip_path[bufsz - 6] = VERSION[0];
     zip_path[bufsz - 5] = VERSION[2];
-
+    printf("zip_path: %s\n", zip_path);
     if (!(efound = search_for_exec_prefix(argv0_path, home))) {
         if (!Py_FrozenFlag)
             fprintf(stderr,
@@ -536,6 +546,7 @@ calculate_path(void)
         strncpy(exec_prefix, EXEC_PREFIX, MAXPATHLEN);
         joinpath(exec_prefix, "lib/lib-dynload");
     }
+    printf("exec_prefix: %s\n", exec_prefix);
     /* If we found EXEC_PREFIX do *not* reduce it!  (Yet.) */
 
     if ((!pfound || !efound) && !Py_FrozenFlag)
@@ -660,6 +671,8 @@ Py_GetPath(void)
 {
     if (!module_search_path)
         calculate_path();
+    printf("[Py_GetPath]\n");
+    printf("module_search_path: %s\n", module_search_path);
     return module_search_path;
 }
 

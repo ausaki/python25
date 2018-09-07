@@ -160,6 +160,7 @@ Py_InitializeEx(int install_sigs)
 #endif
 	extern void _Py_ReadyTypes(void);
 
+	// 保证只初始化一次
 	if (initialized)
 		return;
 	initialized = 1;
