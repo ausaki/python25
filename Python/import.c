@@ -1973,15 +1973,40 @@ static PyObject *
 import_module_level(char *name, PyObject *globals, PyObject *locals,
 		    PyObject *fromlist, int level)
 {
+	int debug = PySys_GetObject("_debug") != NULL ? 1 : 0;
+	if(debug > 0){
+		printf("[import_module_level]\n");
+		printf("globals['__name__']:\n");
+		PyObject_Print(PyDict_GetItemString(globals, "__name__"), stdout, 0);
+		printf("\n");
+		printf("globals['__path__']:\n");
+		PyObject_Print(PyDict_GetItemString(globals, "__path__"), stdout, 0);
+		printf("\n");
+	}
+	
 	char buf[MAXPATHLEN+1];
 	Py_ssize_t buflen = 0;
 	PyObject *parent, *head, *next, *tail;
 
 	parent = get_parent(globals, buf, &buflen, level);
+	if(debug > 0){
+		printf("after get_parent, parent: \n");
+		PyObject_Print(parent, stdout, 0);
+		printf("\n");
+		printf("after get_parent, buflen: %d\n", buflen);
+	}
 	if (parent == NULL)
 		return NULL;
 
 	head = load_next(parent, Py_None, &name, buf, &buflen);
+	if(debug > 0){
+		printf("after load_next, head: \n");
+		PyObject_Print(head, stdout, 0);
+		printf("\n");
+		printf("after load_next, name: %s\n", name);
+		printf("after load_next, buf: %s\n", buf);
+		printf("after load_next, buflen: %d\n", buflen);
+	}
 	if (head == NULL)
 		return NULL;
 
@@ -2022,7 +2047,11 @@ import_module_level(char *name, PyObject *globals, PyObject *locals,
 		Py_DECREF(tail);
 		return NULL;
 	}
-
+	if(debug > 0){
+		printf("tail: \n");
+		PyObject_Print(tail, stdout, 0);
+		printf("\n");
+	}
 	return tail;
 }
 

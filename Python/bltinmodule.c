@@ -40,10 +40,26 @@ builtin___import__(PyObject *self, PyObject *args, PyObject *kwds)
 	PyObject *locals = NULL;
 	PyObject *fromlist = NULL;
 	int level = -1;
+	
+	int debug = PySys_GetObject("_debug") != NULL ? 1 : 0;
 
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "s|OOOi:__import__",
 			kwlist, &name, &globals, &locals, &fromlist, &level))
 		return NULL;
+	if(debug > 0){
+		printf("[builtin__import__]\n");
+		printf("name: %s\n", name);
+		printf("globals:\n");
+		PyObject_Print(PyDict_Keys(globals), stdout, 0);
+		printf("\n");
+		printf("locals:\n");
+		PyObject_Print(PyDict_Keys(locals), stdout, 0);
+		printf("\n");
+		printf("fromlist:\n");
+		PyObject_Print(fromlist, stdout, 0);
+		printf("\n");
+		printf("level: %d\n", level);
+	}
 	return PyImport_ImportModuleLevel(name, globals, locals,
 					  fromlist, level);
 }
